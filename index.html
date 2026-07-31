@@ -415,7 +415,7 @@
   <div class="modal">
     <h3>Busca real no YouTube</h3>
     <p>Por padrão a busca funciona no catálogo do SLASH STREAM e com links colados direto. Para buscar por nome em <b>todo o YouTube</b>, cole aqui sua própria chave gratuita da YouTube Data API v3 (Google Cloud Console). Ela fica só na memória desta aba, nunca é salva ou enviada a mais ninguém.</p>
-    <input id="apiKeyInput" type="text" placeholder="Cole sua chave de API aqui (opcional)">
+    <input id="apiKeyInput" type="text" placeholder="Cole sua chave de API aqui (opcional)" value="AIzaSyBRD-2w9a_8V213II9pU0ZvQwBv089aGc8">
     <div class="key-status" id="keyStatus"></div>
     <div class="modal-actions">
       <button class="btn-ghost" id="closeModalBtn">Fechar</button>
@@ -445,7 +445,7 @@ let state = {
   liked: {},
   likeCounts: {},
   comments: {},
-  apiKey: "",
+  apiKey: "AIzaSyBRD-2w9a_8V213II9pU0ZvQwBv089aGc8",
 };
 let player = null;
 let ytApiReady = false;
