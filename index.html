@@ -168,6 +168,21 @@
     position:relative;
   }
   #playerMount, #playerMount iframe{ width:100%; height:100%; border:none; }
+  .player-mask{
+    position:absolute; pointer-events:none; z-index:5; opacity:0; transition:opacity .2s;
+  }
+  .player-wrap:hover .player-mask{ opacity:1; }
+  .player-mask.top{ top:0; right:0; width:170px; height:42px;
+    background:linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%); }
+  .player-mask.bottom{ bottom:0; right:0; width:66px; height:46px;
+    background:radial-gradient(circle at 100% 100%, rgba(0,0,0,.6), rgba(0,0,0,0) 70%); }
+  .player-title-cover{
+    position:absolute; top:0; left:0; right:0; height:48px; z-index:4; pointer-events:none;
+    background:linear-gradient(180deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 100%);
+    display:flex; align-items:center; padding:0 16px; opacity:0; transition:opacity .2s;
+  }
+  .player-wrap:hover .player-title-cover{ opacity:1; }
+  .player-title-cover span{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; color:#fff; }
   .player-error{
     position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:30px; background:linear-gradient(160deg,#170a24,#0A0512);
@@ -361,6 +376,9 @@
         </button>
         <div class="player-wrap">
           <div id="playerMount"></div>
+          <div class="player-title-cover"><span id="playerTitleCover"></span></div>
+          <div class="player-mask top"></div>
+          <div class="player-mask bottom"></div>
           <div class="player-error" id="playerError">
             <span class="cut">/</span>
             <p id="playerErrorText">Este vídeo não pode ser reproduzido aqui: o próprio criador do conteúdo desativou a reprodução incorporada em sites externos.</p>
@@ -382,12 +400,12 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 22V11M2 13v7a2 2 0 002 2h12.4a2 2 0 002-1.7l1.4-9A2 2 0 0018 9h-5.5l1-4.5A1.5 1.5 0 0012 3L7 11"/></svg>
               <span id="likeCount"></span>
             </button>
-            <button class="action-btn">
+            <button class="action-btn" id="dislikeBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2v11M22 11v-7a2 2 0 00-2-2H7.6a2 2 0 00-2 1.7l-1.4 9A2 2 0 006 15h5.5l-1 4.5A1.5 1.5 0 0012 21l5-8"/></svg>
             </button>
-            <button class="action-btn">
+            <button class="action-btn" id="shareBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>
-              Compartilhar
+              <span id="shareLabel">Compartilhar</span>
             </button>
           </div>
         </div>
@@ -443,6 +461,7 @@ let state = {
   currentVideo: null,
   subscribed: {},
   liked: {},
+  disliked: {},
   likeCounts: {},
   comments: {},
   apiKey: "AIzaSyBRD-2w9a_8V213II9pU0ZvQwBv089aGc8",
@@ -537,6 +556,7 @@ function openWatch(video){
   document.getElementById('playerError').classList.remove('show');
 
   loadPlayer(video.id);
+  document.getElementById('playerTitleCover').textContent = video.title;
 
   document.getElementById('watchTitle').textContent = video.title;
   document.getElementById('watchAvatar').textContent = initials(video.channel);
@@ -552,6 +572,7 @@ function openWatch(video){
 
   renderSubBtn();
   renderLikeBtn();
+  renderShareBtn();
   renderComments();
   renderRelated();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -576,7 +597,12 @@ function loadPlayer(videoId){
     if(player && player.destroy) player.destroy();
     player = new YT.Player('ytPlayerDiv', {
       videoId: videoId,
-      playerVars:{ autoplay:1, rel:0, modestbranding:1, playsinline:1 },
+      host: 'https://www.youtube-nocookie.com',
+      playerVars:{
+        autoplay:1, rel:0, modestbranding:1, playsinline:1,
+        iv_load_policy:3, cc_load_policy:0, fs:1, disablekb:0,
+        origin: window.location.origin
+      },
       events:{
         onError: (e)=>{
           const msgs = {
@@ -616,11 +642,42 @@ function renderSubBtn(){
 function renderLikeBtn(){
   const vid = state.currentVideo.id;
   const liked = !!state.liked[vid];
+  const disliked = !!state.disliked[vid];
   const count = state.likeCounts[vid] + (liked?1:0);
   document.getElementById('likeCount').textContent = fmtLikes(count);
   const btn = document.getElementById('likeBtn');
   btn.className = 'action-btn' + (liked ? ' liked':'');
-  btn.onclick = ()=>{ state.liked[vid] = !liked; renderLikeBtn(); };
+  btn.onclick = ()=>{
+    state.liked[vid] = !liked;
+    if(!liked) state.disliked[vid] = false;
+    renderLikeBtn();
+  };
+
+  const dislikeBtn = document.getElementById('dislikeBtn');
+  dislikeBtn.className = 'action-btn' + (disliked ? ' liked':'');
+  dislikeBtn.onclick = ()=>{
+    state.disliked[vid] = !disliked;
+    if(!disliked) state.liked[vid] = false;
+    renderLikeBtn();
+  };
+}
+
+function renderShareBtn(){
+  const btn = document.getElementById('shareBtn');
+  const label = document.getElementById('shareLabel');
+  btn.onclick = async ()=>{
+    const vid = state.currentVideo.id;
+    const url = `${window.location.origin}${window.location.pathname}?v=${vid}`;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(url);
+      }
+      label.textContent = "Link copiado!";
+    }catch(err){
+      label.textContent = "Copie: " + url;
+    }
+    setTimeout(()=>{ label.textContent = "Compartilhar"; }, 2200);
+  };
 }
 
 function renderComments(){
@@ -661,6 +718,20 @@ function renderRelated(){
 }
 
 /* ---------------- BUSCA ---------------- */
+function mapApiItem(it){
+  return {
+    id: it.id,
+    title: it.snippet.title,
+    channel: it.snippet.channelTitle,
+    cat: "Tudo",
+    views: fmtViews(parseInt((it.statistics&&it.statistics.viewCount)||0)),
+    time: timeAgo(it.snippet.publishedAt),
+    dur: it.contentDetails ? fmtDuration(it.contentDetails.duration) : "",
+    desc: it.snippet.description ? it.snippet.description.slice(0,400) : "Sem descrição disponível para este vídeo.",
+    thumb: it.snippet.thumbnails.high ? it.snippet.thumbnails.high.url : thumbUrl(it.id)
+  };
+}
+
 async function realYouTubeSearch(query){
   const key = state.apiKey;
   const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&q=${encodeURIComponent(query)}&key=${key}`;
@@ -674,17 +745,18 @@ async function realYouTubeSearch(query){
   const detailsRes = await fetch(detailsUrl);
   const detailsData = await detailsRes.json();
 
-  return detailsData.items.map(it=>({
-    id: it.id,
-    title: it.snippet.title,
-    channel: it.snippet.channelTitle,
-    cat: "Tudo",
-    views: fmtViews(parseInt(it.statistics.viewCount||0)),
-    time: timeAgo(it.snippet.publishedAt),
-    dur: fmtDuration(it.contentDetails.duration),
-    desc: it.snippet.description ? it.snippet.description.slice(0,240) : "",
-    thumb: it.snippet.thumbnails.high ? it.snippet.thumbnails.high.url : thumbUrl(it.id)
-  }));
+  return detailsData.items.map(mapApiItem);
+}
+
+async function fetchVideoById(id){
+  const key = state.apiKey;
+  if(!key) return null;
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${id}&key=${key}`;
+  const res = await fetch(url);
+  if(!res.ok) return null;
+  const data = await res.json();
+  if(!data.items || !data.items.length) return null;
+  return mapApiItem(data.items[0]);
 }
 
 document.getElementById('searchForm').addEventListener('submit', async (e)=>{
@@ -695,13 +767,29 @@ document.getElementById('searchForm').addEventListener('submit', async (e)=>{
   const ytId = extractYouTubeId(q);
   if(ytId){
     const existing = VIDEOS.find(v=>v.id===ytId);
-    const video = existing || {
-      id: ytId, title: "Vídeo carregado do YouTube", channel: "Canal do YouTube",
-      cat: "Tudo", views: "—", time: "", dur: "",
-      desc: "Este vídeo foi carregado diretamente a partir do link ou ID que você colou na busca."
-    };
+    if(existing){
+      closeWatch();
+      openWatch(existing);
+      return;
+    }
     closeWatch();
+    let video = {
+      id: ytId, title: "Carregando vídeo...", channel: "—",
+      cat: "Tudo", views: "—", time: "", dur: "",
+      desc: "Buscando as informações deste vídeo..."
+    };
     openWatch(video);
+    if(state.apiKey){
+      try{
+        const real = await fetchVideoById(ytId);
+        if(real){ openWatch(real); return; }
+      }catch(err){ /* segue pro fallback abaixo */ }
+    }
+    openWatch({
+      id: ytId, title: "Vídeo carregado por link", channel: "Canal não identificado",
+      cat: "Tudo", views: "—", time: "", dur: "",
+      desc: "Não foi possível carregar os detalhes deste vídeo agora, mas ele deve tocar normalmente no player abaixo."
+    });
     return;
   }
 
@@ -794,6 +882,16 @@ document.querySelectorAll('.side-item[data-view]').forEach(item=>{
 /* ---------------- INIT ---------------- */
 renderPills();
 renderGrid();
+
+(function initFromLink(){
+  const params = new URLSearchParams(window.location.search);
+  const vid = params.get('v');
+  if(!vid) return;
+  const existing = VIDEOS.find(v=>v.id===vid);
+  if(existing){ openWatch(existing); return; }
+  document.getElementById('searchInput').value = vid;
+  document.getElementById('searchForm').dispatchEvent(new Event('submit', {cancelable:true}));
+})();
 </script>
 </body>
 </html>
